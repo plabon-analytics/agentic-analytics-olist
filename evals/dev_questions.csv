@@ -1,0 +1,6 @@
+id,split,category,question,gold_sql,notes
+1,dev,easy,"How many orders were placed in January 2018?","SELECT COUNT(*) FROM orders WHERE order_purchase_timestamp >= '2018-01-01' AND order_purchase_timestamp < '2018-02-01';","Uses purchase timestamp and counts all order statuses."
+2,dev,definition,"What was total revenue in 2017?",TODO,"Depends on the revenue definition. Decide after your checks."
+3,dev,join,"Which product category generated the highest revenue?",TODO,"Category names are Portuguese, so use the translation table. Watch for repeated rows if payments are joined."
+4,dev,time reference,"How many distinct customers placed an order in the 90 days before 2018-08-01?",TODO,"customer_id changes per order. Decide which column counts people."
+5,dev,analytical,"Why did revenue drop in September 2018?",NONE,"Not scored by SQL. Check the premise first, then use a written rubric."
