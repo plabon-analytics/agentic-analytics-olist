@@ -74,3 +74,36 @@ Eval notes: 5 draft dev questions are in evals/dev_questions.csv. None has been 
 Details: docs/schema_notes.md
 
 Next: write the revenue decisions and gold SQL for Q2 to Q4.
+
+## 2026-10-26 (Week 0: gold SQL)
+
+Purpose: write the answer key (gold SQL) the agent will later be graded against, so every grade rests on a query I understand and have checked.
+
+Decisions (written before the SQL):
+- Q2 revenue: payment_value, delivered orders only, purchase date in 2017.
+- Q3 category revenue: item price, delivered orders only. Payments are not used because they cannot be split by category and would multiply rows. Products with no category show as unknown; products with no translation show the Portuguese name.
+- Q4 customers: people (customer_unique_id), all order statuses, window 2018-05-03 up to but not including 2018-08-01.
+
+Commands and purpose:
+- Yearly delivered revenue by purchase year: prove the Q2 filter by adding the years up to the known delivered total.
+- SUM(price) for delivered orders: get the reference total that all Q3 category totals must add up to.
+- Orders, delivered orders and people in the Q4 window: see what the status filter costs and check that people never exceed orders.
+
+Happened:
+- Q2 check: 2016 = 46,586.33, 2017 = 6,922,900.24, 2018 = 8,452,975.20. Together 15,422,461.77, which equals the delivered payment total in the schema notes. Q2 is proven.
+- Delivered item price total: 13,221,498.11.
+- Q4 window: 18,780 orders, 18,468 of them delivered, 18,551 people (any status). Delivered-only people were 18,248.
+
+Learned:
+- A gold query must do what the written decision says. My first Q3 used an inner join to the translation table, which silently drops products with no category or no translation. A LEFT JOIN with COALESCE keeps them.
+- The question text and the SQL must say the same thing. My first Q4 question said "placed an order" but the SQL kept only delivered orders. The agent sees the question and never sees my notes.
+- A -- comment inside a CSV cell can swallow the rest of the query. Results and decisions go in the notes column.
+- The word "revenue" in Q2 is undefined on purpose. The metric file at L4 will supply the definition, and the gap between L3 and L4 answers is the experiment.
+
+Ideas to test later (not learned yet):
+- How much revenue the inner join in my first Q3 query lost.
+- Whether the second-place category is close enough to health_beauty that a different revenue definition flips the winner.
+
+Eval notes: dev_questions.csv has 5 questions with gold SQL for Q1 to Q4 and a rubric for Q5. Q1 and Q3 results still need a re-run to confirm. None of the questions has been run on an agent, since no agent exists.
+
+Next: run src/check_gold.py to confirm the saved SQL gives the recorded results, then start the Level 0 lesson.
