@@ -111,7 +111,7 @@ Eval notes: dev_questions.csv has 5 questions with gold SQL for Q1 to Q4 and a r
 
 Next: start the Level 0 lesson.
 
-## 2026-11-01 (Level 0: what is an agent)
+## 2026-10-31 (Level 0: what is an agent)
 
 Purpose: write my own definition of an agent before I build one. Lessons 0.1 to 0.5 are done. No commands were run; Level 0 is concepts only.
 
@@ -160,3 +160,16 @@ Questions I can now answer:
 - If an agent gave me a number, what would I need to know to trust it? Which definition it used, which rows it included, whether the premise holds, and whether I can read the query it wrote.
 
 Next: Level 1. Choose an API provider, put the key only in .env, and start Lesson 1.1.
+
+## <2026-11-01> (Level 1, Lesson 1.1: first call to a model)
+
+Purpose: make my first call to a language model from Python and see what goes out and what comes back.
+
+Commands and purpose (written before running):
+- `pip install google-genai`: install the library that sends requests to the Gemini API.
+- `pip freeze > requirements.txt`: record exact versions so the setup can be rebuilt.
+- `python src/hello_model.py`: send one prompt to the model and print the reply.
+
+Happened:
+
+Learned:
