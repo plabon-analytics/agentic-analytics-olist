@@ -110,3 +110,53 @@ Ideas to test later (not learned yet):
 Eval notes: dev_questions.csv has 5 questions with gold SQL for Q1 to Q4 and a rubric for Q5. All four gold queries were run with check_gold.py and match the recorded results. None of the questions has been run on an agent, since no agent exists.
 
 Next: start the Level 0 lesson.
+
+## 2026-11-01 (Level 0: what is an agent)
+
+Purpose: write my own definition of an agent before I build one. Lessons 0.1 to 0.5 are done. No commands were run; Level 0 is concepts only.
+
+Q1. In my own words, what is an agent?
+An agent is like an intern who has keys to the database. I give it a question in English. The model decides what it needs and asks for a tool: get_schema() lists the tables and columns, and run_sql() runs a query. My program runs the tool and sends the result back, and the model decides the next step. This repeats until the model has an answer or my program stops it at MAX_STEPS. An agent can fix a mistake only when it gets a signal, like an error message. My inflated revenue of 20,308,134.71 ran without any error, so an agent would have reported it as if it were right. A script cannot choose its next step. It only runs what I wrote.
+
+Q2. For "How many orders were placed in January 2018?", what would a script, a workflow and an agent each do?
+- Script: one SQL query I wrote, SELECT COUNT(*) FROM orders WHERE order_purchase_timestamp >= '2018-01-01' AND order_purchase_timestamp < '2018-02-01'. It returns 7,269 every time and makes no model call, so it has no model cost.
+- Workflow: a model turns the English question into fixed fields like the month and the metric. My code puts those fields into a fixed SQL template and runs it. A model then writes one sentence with the result. The path never changes, and the model only does the language parts.
+- Agent: the model asks for get_schema(), then asks for run_sql(), then writes the answer. That is 3 model calls for a question I already know how to answer. For a known question, a script is better.
+
+Q3. Which three tasks in my project should stay scripts, and why?
+- profile_db.py and check_gold.py. profile_db.py must give repeatable numbers (99,441 orders, 96,096 people). An agent could choose different queries on different runs. check_gold.py is my ruler for the agent, and a ruler that changes cannot measure anything.
+- Loading the 9 CSVs into olist.db. It is the same every time and needs no understanding of language. I want the database rebuilt identically.
+- The yearly revenue check for Q2 (46,586.33 + 6,922,900.24 + 8,452,975.20 = 15,422,461.77). The revenue definition must be fixed. If a model chose the definition, the proof would break.
+
+Q4. When would an agent be the better choice? (Olist example)
+"Which product categories grew fastest in the second half of 2017?" Nobody has written that query. The agent has to look at the schema, write a query, and maybe fix it. It also needs a definition of "grew fastest", which is a job for my metrics file at Level 4.
+A second example is "Why did revenue drop in September 2018?" A careless agent would explain the drop with churn. An agent built to check the premise would run a monthly count with run_sql and find 16 orders in September against 6,512 in August (Lesson 7.4). A script would only print a small number. The agent learns this from the database through its tools, not from my notes or this log.
+
+Q5. What are the four parts of an agent, and what will I build at Level 2?
+- The model (the brain) decides what to do.
+- The tools (the hands) are get_schema() and run_sql().
+- The loop (the eyes) sends each observation back to the model, which decides again.
+- The goal with a stopping rule is the question plus MAX_STEPS.
+Three things that look similar are different. The history is the agent's working memory, kept and resent by my program. The trajectories/ folder is a record saved for me to study later. research_log.md is my own diary. The agent never reads schema_notes.md or this log.
+At Level 2 I will build get_schema() reading the live database, run_sql() opening the database read-only with a row limit, the loop, MAX_STEPS, and trajectory logging.
+
+Q6. What stays with the analyst, and what can an agent take over?
+- An agent can take over writing and running SQL and counting, such as 7,269 orders in January 2018 or 18,551 people in the 90-day window.
+- I keep deciding what "revenue" means. I found five totals. For Q2 I decided revenue = payment_value on delivered orders.
+- I keep checking. An agent catches join inflation only if it is built with a check, such as comparing against a known total, which is how I found the 28%.
+- I keep interpreting. The measurement showed that 162,591.95 of payments belongs to the 775 orders with no item rows. Reading what that means is my job.
+- I keep questioning the premise, as with September 2018.
+
+Q7. What am I still unsure about?
+- How does the agent know it has the right answer and should stop? Learned: it does not know. The model stops when it decides it has an answer, and my program stops it at MAX_STEPS. Correctness is checked afterwards by comparing with gold answers (Level 5).
+- How do I write "revenue = payment_value, delivered only" in a file the agent can read? A rough preview: a named definition with a description, the measure, the filter and the date column. I will design it properly at Level 4.
+- How much revenue did the inner join in my first Q3 query lose? Still unmeasured.
+
+Questions I can now answer:
+- Who decides the next step? In a script, the person who wrote it. In a workflow, the person, with a model doing some steps. In an agent, the model.
+- Why can't the model run a tool? It only produces text. My program runs the real function and sends back the result.
+- Why does my program resend the whole history every time? The model remembers nothing between calls.
+- Why does the program stop the loop and not the model? A confused model cannot be trusted to stop itself.
+- If an agent gave me a number, what would I need to know to trust it? Which definition it used, which rows it included, whether the premise holds, and whether I can read the query it wrote.
+
+Next: Level 1. Choose an API provider, put the key only in .env, and start Lesson 1.1.
