@@ -161,7 +161,7 @@ Questions I can now answer:
 
 Next: Level 1. Choose an API provider, put the key only in .env, and start Lesson 1.1.
 
-## <2026-11-01> (Level 1, Lesson 1.1: first call to a model)
+## 2026-11-01 (Level 1, Lesson 1.1: first call to a model)
 
 Purpose: make my first call to a language model from Python and see what goes out and what comes back.
 
@@ -171,5 +171,38 @@ Commands and purpose (written before running):
 - `python src/hello_model.py`: send one prompt to the model and print the reply.
 
 Happened:
+- The first call worked. The model name comes from LLM_MODEL in .env (model used: ___).
+- Prompt: "In one sentence, what is an e-commerce order?"
+- Reply: "An e-commerce order is a customer's confirmed digital request to purchase specific goods or services from an online merchant, which initiates the payment, processing, and delivery workflow."
+- Each call took about 1.5 to 2 minutes, which is much slower than I expected.
 
 Learned:
+- A request carries the model name, the prompt, settings and my API key. The response carries the reply text and a count of tokens used.
+- The key and the model name live in .env and are read with load_dotenv(). The script holds only the names, never the secret.
+- Every call stands alone. The model remembers nothing between calls.
+- The model runs on the provider's servers, not on my MacBook.
+
+Open question (not learned yet):
+- Why is one call so slow? Candidates: the model spends time "thinking" before it answers, the free tier queues requests, the model name points to a heavy model, or the network is slow. A loop of 3 to 5 calls per question would be painfully slow at this speed, so I need the cause before Level 2.
+
+Next: find the cause of the slow call, then Lesson 1.2 (tokens, the context window, temperature).
+
+## 2026-11-01 (Level 1, Lesson 1.2: tokens and settings)
+
+Purpose: see how text turns into tokens, and understand the settings that change what the model does.
+
+Commands and purpose (written before running):
+- `python src/count_tokens.py`: count the tokens in four texts (a sentence, an order_id, a SQL query, my schema notes) to see the difference between characters and tokens.
+
+Happened:
+- a short sentence: 44 characters, 14 tokens (3.1 characters per token)
+- an order_id: 32 characters, 29 tokens (1.1)
+- a SQL query: 119 characters, 44 tokens (2.7)
+- my schema notes file: 10,977 characters, 4,037 tokens (2.7)
+
+Learned:
+- About one token per four characters, or about three-quarters of a word.
+- An order_id use many tokens for its length, because It’s a random string with no word pieces, so it gets split into many tiny tokens. Plain English words are usually kept in bigger pieces.
+- Everything in one call: my prompt, the history you resend, and the model’s reply, including any thinking tokens is the context window.
+
+Next: System prompt and user prompt
