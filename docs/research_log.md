@@ -206,3 +206,24 @@ Learned:
 - Everything in one call: my prompt, the history you resend, and the model’s reply, including any thinking tokens is the context window.
 
 Next: System prompt and user prompt
+
+## 2026-11-02 (Level 1, Lesson 1.3: system and user prompts)
+
+Purpose: see how a system prompt changes what the model does with the same question.
+
+Commands and purpose (written before running):
+- `python src/prompt_demo.py`: send the same question twice, once without and once with a system prompt, and compare the two answers and their input tokens.
+
+Prompt version: system prompt v1 (the text in src/prompt_demo.py).
+
+Happened:
+- First run failed with 503 UNAVAILABLE on gemini-flash-latest (model overloaded, not a mistake in my code).
+- I listed the available names with src/list_models.py. gemini-2.5-flash-lite was in the list but failed for my key. I switched to gemini-3.5-flash (date: 2026-11-03).
+- Without a system prompt: the model said it had no access to my data and asked for a file. Input tokens: 7.
+- With system prompt v1: the answer followed the two-line format, said Needs clarification: yes, and noted that revenue has several definitions and that "last month" doesn't fit a dataset ending in October 2018. Input tokens: 113.
+- The system prompt added 106 input tokens, repeated in every call.
+
+Learned:
+- Without a system prompt, the model knew nothing about Olist. It saw only “revenue for last month” and had no data to work with.
+- Three parts of the system prompt shaped the second answer: the two-line format, the rule to answer yes when a metric has several definitions, and the context about the date range of the data.
+- gemini-3.5-flash better for research than gemini-flash-latest, because it’s a fixed name, so it doesn’t silently move to another model. You still have to record the date, because providers retire names over time.
