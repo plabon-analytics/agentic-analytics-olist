@@ -171,7 +171,7 @@ Commands and purpose (written before running):
 - `python src/hello_model.py`: send one prompt to the model and print the reply.
 
 Happened:
-- The first call worked. The model name comes from LLM_MODEL in .env (model used: ___).
+- The first call worked. The model name comes from LLM_MODEL in .env (model used: gemini-flash-latest).
 - Prompt: "In one sentence, what is an e-commerce order?"
 - Reply: "An e-commerce order is a customer's confirmed digital request to purchase specific goods or services from an online merchant, which initiates the payment, processing, and delivery workflow."
 - Each call took about 1.5 to 2 minutes, which is much slower than I expected.
@@ -185,7 +185,7 @@ Learned:
 Open question (not learned yet):
 - Why is one call so slow? Candidates: the model spends time "thinking" before it answers, the free tier queues requests, the model name points to a heavy model, or the network is slow. A loop of 3 to 5 calls per question would be painfully slow at this speed, so I need the cause before Level 2.
 
-Next: find the cause of the slow call, then Lesson 1.2 (tokens, the context window, temperature).
+Next: Lesson 1.2 (tokens, the context window, temperature). I skipped the timing script for now; see the open question in the Lesson 1.3 entry.
 
 ## 2026-11-01 (Level 1, Lesson 1.2: tokens and settings)
 
@@ -202,8 +202,9 @@ Happened:
 
 Learned:
 - About one token per four characters, or about three-quarters of a word.
-- An order_id use many tokens for its length, because It’s a random string with no word pieces, so it gets split into many tiny tokens. Plain English words are usually kept in bigger pieces.
-- Everything in one call: my prompt, the history you resend, and the model’s reply, including any thinking tokens is the context window.
+- An order_id uses many tokens for its length, because it’s a random string with no word pieces, so it gets split into many tiny tokens. Plain English words are usually kept in bigger pieces.
+- The context window is everything in one call: my prompt, the history my program resends, and the model’s reply, including any thinking tokens.
+- For text like mine (SQL, numbers, IDs) the real ratio was about 2.7 characters per token, not 4. A 32-character order_id cost 29 tokens, so a query that returns IDs is expensive. My schema notes (4,037 tokens) would be paid for again in every round of the agent loop.
 
 Next: System prompt and user prompt
 
@@ -226,4 +227,71 @@ Happened:
 Learned:
 - Without a system prompt, the model knew nothing about Olist. It saw only “revenue for last month” and had no data to work with.
 - Three parts of the system prompt shaped the second answer: the two-line format, the rule to answer yes when a metric has several definitions, and the context about the date range of the data.
-- gemini-3.5-flash better for research than gemini-flash-latest, because it’s a fixed name, so it doesn’t silently move to another model. You still have to record the date, because providers retire names over time.
+- gemini-3.5-flash is better for research than gemini-flash-latest, because it’s a fixed name, so it doesn’t silently move to another model. I still have to record the date, because providers retire names over time.
+- A model name in the list can still fail: gemini-2.5-flash-lite was listed but did not work for my key.
+
+Open question (not measured):
+- Why were calls so slow in Lesson 1.1? A likely cause is that Gemini 3 models think at a high level by default, and the free tier may queue requests. I first guessed the library was retrying after 503 errors, but its code makes only one attempt by default (see Lesson 1.5). I skipped the timing script for now.
+
+## 2026-11-03 (Level 1, Lesson 1.4: clean JSON)
+
+Purpose: make the model return fields my program can read, and see what structured output fixes and what it doesn't.
+
+Commands and purpose (written before running):
+- `python src/question_to_json.py`: turn three business questions into JSON fields with a schema, and print each result.
+
+Prompt version: system prompt v2 (the text in src/question_to_json.py). Model: gemini-3.5-flash.
+
+Happened:
+- Question 1, "How many orders were placed in January 2018?": {'intent': 'count', 'metric': 'orders', 'time_range': 'January 2018', 'needs_clarification': False, 'reason': 'The request specifies a clear metric and a valid time range.'}
+- Question 2, "Show me revenue for last month": {'intent': 'total', 'metric': 'revenue', 'time_range': 'last month', 'needs_clarification': True, 'reason': 'Revenue can be defined with or without freight fees, and the dataset only contains data up to October 2018.'}
+- Question 3, "Which product category sells the most?": {'intent': 'ranking', 'metric': 'units sold or sales revenue', 'time_range': 'none', 'needs_clarification': True, 'reason': "'Sells the most' can refer to either total quantity of items sold or total sales revenue, and revenue itself has multiple calculation methods."}
+- All three replies parsed, and every field had the right type.
+
+Learned:
+- The schema fixed the shape. The reply always parsed, intent stayed inside the four allowed values, and needs_clarification came back as a real true or false.
+- A schema is like a table definition for one answer. It does not make the content correct. Valid JSON is not the same as correct JSON.
+- Each value came from one of three places: the words of the question (intent, metric, time_range), my system prompt (the rule for needs_clarification and the line about the date range), or the model's general knowledge (the phrase "with or without freight", which my prompt never mentioned). The model cannot see my database and does not know that payment_value exists.
+- Two weak spots in my schema. metric accepts any text, so question 3 got 'units sold or sales revenue', which is two answers in one field. time_range copies the user's words ('last month'), which a program cannot turn into dates.
+- Changing the system prompt, the schema or the settings can change the result. The same prompt can also give different wording on different runs, so one run proves nothing.
+
+Ideas to test (not run yet):
+- Experiment A: add a definition of revenue to the system prompt (v3) and see whether "What was total revenue in 2017?" stops needing clarification. This is a small preview of the metrics file at Level 4.
+- Experiment B: make metric a fixed list of allowed values and see what question 3 returns.
+
+Next: Lesson 1.5 (what to do when things fail: broken JSON, provider errors, retries).
+
+## 2026-11-11 (Level 1, Lesson 1.5: when things fail)
+
+Purpose: handle temporary failures and bad output without crashing, and report each failure clearly.
+
+Commands and purpose (written before running):
+- `python src/test_retry.py`: simulate four kinds of failure (no real API call) to see how the retry helper behaves.
+- `python src/question_to_json.py`: run the three real questions again, now with retries.
+
+Prediction (written before running test_retry.py): case A takes ___ attempts, case B takes ___ and ends as ___, case C takes ___ and ends as ___, case D takes ___.
+
+Happened:
+- Simulation (waits shortened to a fraction of a second):
+  - A, two 503 errors then success: ok after 3 attempts.
+  - B, 503 every time: gave up after 4 attempts (error_type gave_up).
+  - C, wrong API key (code 400): stopped after 1 attempt (error_type permanent).
+  - D, broken JSON twice then success: ok after 3 attempts.
+- Real run of question_to_json.py:
+  - "How many orders were placed in January 2018?": two real 503 UNAVAILABLE errors ("This model is currently experiencing high demand"), with waits of 1.2 and 2.3 seconds, then success on attempt 3. Result: {'intent': 'count', 'metric': 'orders', 'time_range': 'January 2018', 'needs_clarification': False, 'reason': 'The request specifies a clear count of orders for a valid month within the dataset.'}
+  - "Show me revenue for last month": attempt 1. Result: {'intent': 'total', 'metric': 'revenue', 'time_range': 'last month', 'needs_clarification': True, 'reason': "Revenue can be defined in multiple ways (e.g., item price vs. total payment) and 'last month' is ambiguous relative to the dataset's time frame of September 2016 to October 2018."}
+  - "Which product category sells the most?": attempt 1. Result: {'intent': 'ranking', 'metric': 'units_sold', 'time_range': 'none', 'needs_clarification': True, 'reason': "'Sells the most' can refer to either the total number of items sold or total revenue generated."}
+
+Learned:
+- There are three kinds of failure. Temporary ones (503, 429, timeouts) need a wait and a retry. Permanent ones (wrong key, wrong model name, a 400 or 404) need a stop, because retrying repeats the error. Bad output (broken JSON) is worth a few retries, with a cap.
+- Backoff doubles the wait: 1.2 seconds and then 2.3 seconds were a base of 1 and 2 seconds plus a small random jitter. A real 503 hit question 1 twice, and the third attempt worked.
+- The helper returns a record (ok, data or error_type, attempts) instead of crashing. A failure is not a wrong answer, so in the evaluation I will count correct answers, wrong answers and failures separately.
+- Simulating failures tested all four paths in a second, without using any quota.
+- The reason text changed in wording between runs (question 1 and question 2), but needs_clarification stayed the same. One run proves nothing about wording.
+- metric came back as 'units_sold' for question 3, a clean value, where the earlier run gave 'units sold or sales revenue'. [confirm: I changed metric to a fixed list of allowed values, which was Experiment B.] The fixed list made the value clean, but it forced the model to pick one of two options, so the doubt now lives only in needs_clarification and reason.
+- Seeing real 503s retried in my own wrapper makes the retry-inside-the-library explanation for the slow Lesson 1.1 calls more likely. Still not measured.
+
+Ideas to test later (not run yet):
+- Experiment A: add a definition of revenue to the system prompt and see whether "What was total revenue in 2017?" stops needing clarification.
+
+Next: Lesson 1.6, the Level 1 project: a function that turns a business question into clean JSON, using everything from this level.
