@@ -373,3 +373,41 @@ Still open:
 - Repeatability. Temperature is not a reliable control on Gemini 3, so Level 5 must repeat runs and report the spread.
 
 Next: Level 2, Lesson 2.1 (tools: giving a model a function it can ask for).
+
+## 2026-11-14 (Level 2, Lesson 2.1: tools)
+
+Purpose: declare two tools and see what the model asks for, without running any tool yet.
+
+Commands and purpose (written before running):
+- `python src/tool_demo.py`: send two questions with two tool declarations and print what the model returns (a tool request or a direct answer), plus the seconds and the thinking tokens.
+- The same command again after adding one rule to the system prompt (v2), to see whether the rule changes when the model uses a tool.
+
+Prompt versions:
+- v1: "You answer questions about the Olist e-commerce database. Use the tools to look at the data. Never guess numbers."
+- v2: v1 plus "If a question is general and does not need the database, answer it directly without calling a tool."
+
+Prediction (written before running):
+- v1, "How many sellers are there?": the model will ___. "What is a primary key in a database?": the model will ___.
+- v2: question 2 will ___, and question 1 will ___.
+
+Happened:
+- v1, "How many sellers are there?": the model asked for get_schema with no arguments. 9.9 seconds, 128 input tokens, 27 thinking tokens.
+- v1, "What is a primary key in a database?": the model also asked for get_schema (I had expected a direct answer). 10.5 seconds, 131 input tokens, 183 thinking tokens.
+- v2, "How many sellers are there?": get_schema again. 10.4 seconds, 148 input tokens, 29 thinking tokens.
+- v2, "What is a primary key in a database?": the model answered directly with a long, formatted explanation (uniqueness, non-null, one per table, why it matters, an example). 14.5 seconds, 151 input tokens, 223 thinking tokens.
+
+Learned:
+- A tool declaration has a name, a description and parameters. The model sees only that, never my code. The model asks (a function call), my program runs the function and sends back a function response.
+- With v1 the model asked for get_schema even for a general question, because my system prompt scoped it to the Olist database and told it to use the tools. The system prompt and the descriptions decide when tools are used, and a model can use a tool it does not need.
+- One added rule fixed it in v2. Question 2 was answered directly, and question 1 still asked for get_schema. The rule cost 20 more input tokens in every call (128 to 148, and 131 to 151). One run per version proves nothing about how reliably it holds.
+- An unneeded tool call costs an extra call, tokens and seconds, and inside a loop it could lead to pointless work.
+- The direct answer took 14.5 seconds, longer than a tool request, because the model wrote a long answer and used 223 thinking tokens. My prompt never asked for a short answer. I did not record the visible output tokens.
+- Speed: the calls took 9.9 to 14.5 seconds, much faster than the translator run (median 50.7 seconds). More thinking tokens did not mean much more time (156 more thinking tokens cost about 0.6 seconds in v1). Two calls prove little, and the provider may simply have been quieter.
+- The system prompt and the two declarations cost about 120 input tokens in every call (128 and 131 tokens for questions of about 7 to 10 tokens).
+- The tools I declare are the power I grant. The model can send any arguments, so my own code has to check them (Lesson 2.2 and Level 3).
+
+Ideas to test later (not run yet):
+- Record the visible output tokens too, and ask for short answers to general questions.
+- Compare thinking_level low on the loop calls in Lesson 2.3, to find out where the seconds go.
+
+Next: Lesson 2.2 (my two real tools: get_schema() and run_sql()).
